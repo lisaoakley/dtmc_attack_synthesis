@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# PRISM directory to link to
+if [ "$PRISM_DIR" = "" ]; then
+	PRISM_DIR="../../../../prism-4.6/prism"
+fi
+
+# Path to py4j
+if [ "$PYJ_JAR" = "" ]; then
+	PYJ_JAR="../env/share/py4j/py4j0.10.9.2.jar"
+fi
+
+# Class to run
+if [ "$GATEWAY_MAINCLASS" = "" ]; then
+	GATEWAY_MAINCLASS=io/github/lisaoakley/prism_gateway/PrismGateway
+fi
+
+# Set up CLASSPATH:
+DEPENDENCY_CLASSPATH=classes:"$PRISM_DIR":"$PRISM_DIR"/classes:"$PRISM_DIR"/lib/*:"$PRISM_DIR"/prism:"$PRISM_DIR"/prism/classes:"$PRISM_DIR"/prism/lib/*:"$PYJ_JAR"
+
+# Set up pointers to libraries
+PRISM_LIB_PATH="$PRISM_DIR"/lib:"$PRISM_DIR"/prism/lib
+if [[ "$OSTYPE" == "darwin"* ]]; then
+	export DYLD_LIBRARY_PATH="$PRISM_LIB_PATH"
+else
+	export LD_LIBRARY_PATH="$PRISM_LIB_PATH"
+fi
+
+# Command to launch Java
+if [ "$PRISM_JAVA" = "" ]; then
+	# On OS X, we want to avoiding calling java from the /usr/bin link
+	# since it causes problems with dynamic linking (DYLD_LIBRARY_PATH)
+	if [ -x /usr/libexec/java_home ]; then
+		PRISM_JAVA=`/usr/libexec/java_home`"/bin/java"
+	else
+		PRISM_JAVA=java
+	fi
+fi
+
+# Run PRISM through Java
+"$PRISM_JAVA" -Djava.library.path="$PRISM_LIB_PATH" -classpath "$DEPENDENCY_CLASSPATH" $GATEWAY_MAINCLASS "$@" &
+sleep 1
