@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+
+import numpy as np 
+import pandas as pd
+import matplotlib.pyplot as plt
+import logging
+
+plt.rcParams.update({'axes.labelsize':14,'xtick.labelsize':10,'ytick.labelsize':10})
+logging.getLogger().setLevel(level=getattr(logging, "INFO"))
+
+
+# f'results/gridworld/{gw}/concrete/{epsilon:03}/until/{tm}/res.csv'
+epsilons = [.05, .10, .15, .20, .25, .30, .35, .4, .45, .5]
+gws = ['protocol']
+tms = {'SPSS_1':'SPSS'}
+print(tms)
+
+cols = ['SPSS'] + ['Unperturbed','epsilon']
+scatter_df = pd.DataFrame(columns=cols,index=range(len(epsilons)*len(gws)))
+
+colors = ['r','g','b','y']
+markers = ['x','+','d','o']
+
+for j,tm in enumerate(tms.keys()):
+    i = 0
+    for epsilon in epsilons:
+        sum1, sum2 = 0,0
+        res = pd.read_csv(f'results/protocol/protocol/concrete/{int(epsilon*100):03}/eventually10/{tm}/res.csv',index_col=0)
+        val1 = float(res.loc['minimized_probability'][0])
+        val2 = float(res.loc['unperturbed_probability'][0])
+        sum1 += val1
+        sum2 +=val2
+        
+        scatter_df.loc[i,tms[tm]] = val1/len(gws)
+        if j == 0:
+            scatter_df.loc[i,'Unperturbed'] = val2/len(gws)
+        scatter_df.loc[i,'epsilon'] = epsilon
+        i += 1
+
+logging.info('plotting unperturbed')
+
+print(scatter_df)
+scatter_ax = scatter_df.plot(kind='line', x="epsilon", y="Unperturbed", color='k', zorder=0, linestyle='dashed', label="Unperturbed")
+scatter_ax.figure.set_size_inches(6, 4)
+
+for tm in tms:
+    logging.info(f"Plot scatter for {tm}.") 
+    scatter_df.plot(kind='line', x="epsilon", y=tms[tm], color=colors.pop(),ax=scatter_ax, label=tms[tm], marker=markers.pop())
+
+out = "plotting/plots/Pr_vs_epsilon_protocol.pdf"
+
+plt.xlabel("$\\varepsilon$")
+plt.ylabel("$Pr(s_0\models_{\mathcal{C}'} \\varphi)$")
+plt.legend()
+plt.tight_layout()
+plt.savefig(out)
+logging.info(f"plot saved to {out}")

@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+
+import pandas as pd
+import logging
+
+logging.getLogger().setLevel(level=getattr(logging, "INFO"))
+
+cols = ['property', 'Method', 'num_states', 'num_params', 'duration', 'optimization_duration', 'Total Duration']
+
+res_cols = ['Property', '# States', '# Params', 'Method', 'Total Duration']
+
+gws = [5, 10, 15]
+sel_state = [1, 2, 4]
+methods = {'concrete':'Direct Computation','symbolic':'Symbolic Soln. Func.'}
+
+stats_df = pd.DataFrame(columns=res_cols,index=range(len(sel_state)*len(gws)*len(methods)))
+
+i = 0
+for gw in gws:
+    for n_state in sel_state:
+        for method in methods.keys():
+            trans_states = [str(gw+1), str(gw+2), str(gw+3), str(2*gw+1)]
+            trans = '-'.join(trans_states[:n_state])
+            res_file = f"results/gridworld/{str(gw)}x{str(gw)}rand0000/{method}/005/scale_until/SPSS_{trans}/res.csv"
+            try:
+                print(res_file)
+                res_df = pd.read_csv(res_file,index_col=0)
+            except FileNotFoundError as err:
+                logging.info(f'Not found: {res_file}')
+                stats_df.loc[i,'Property'] = stats_df.loc[i-1,'Property']
+                stats_df.loc[i,'# States'] = gw**2
+                stats_df.loc[i,'# Params'] = n_state*5
+                stats_df.loc[i,'Total Duration'] = 'TO'
+                stats_df.loc[i,'Method'] = methods[method]
+                i += 1
+                continue
+
+
+            try:
+                res_df.loc['num_states']
+            except (KeyError,AttributeError) as err:
+                logging.info(f'res_df: {res_df}')
+                stats_df.loc[i,'Property'] = stats_df.loc[i-1,'Property']
+                stats_df.loc[i,'# States'] = gw**2
+                stats_df.loc[i,'# Params'] = n_state*5
+                stats_df.loc[i,'Total Duration'] = 'TO'
+                stats_df.loc[i,'Method'] = methods[method]
+                i += 1
+                continue
+
+            stats_df.loc[i,'Property'] = res_df.loc['property'][0]
+            stats_df.loc[i,'# States'] = res_df.loc['num_states'][0]
+            stats_df.loc[i,'# Params'] = res_df.loc['num_params'][0]
+            pre = round(float(res_df.loc['preprocessing_duration'][0]),3)
+            opt = round(float(res_df.loc['optimization_duration'][0]),3)
+            total_dur = round(pre + opt,3)
+            if method == 'concrete':
+                stats_df.loc[i,'Total Duration'] = total_dur
+            else:
+                stats_df.loc[i,'Total Duration'] = f"{pre} + {opt} = {total_dur}"
+            stats_df.loc[i,'Method'] = methods[method]
+            
+            i += 1
+
+out = 'plotting/plots/scale.tex'
+tex = stats_df.to_latex(index=False)
+with open(out, 'w') as o:
+    o.write(tex)
+logging.info(out)

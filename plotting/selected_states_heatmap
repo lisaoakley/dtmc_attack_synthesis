@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+import numpy as np 
+import pandas as pd
+import matplotlib.pyplot as plt
+import logging
+import seaborn as sns
+
+plt.rcParams.update({'axes.labelsize':14,'xtick.labelsize':16,'ytick.labelsize':16})
+logging.getLogger().setLevel(level=getattr(logging, "INFO"))
+
+eps010ss_root = "results/gridworld/3x3heatmaps/concrete/010/until6_states/SS_"
+eps020ss_root = "results/gridworld/3x3heatmaps/concrete/020/until6_states/SS_"
+eps010spss_root = "results/gridworld/3x3heatmaps/concrete/010/until6_states/SPSS_"
+eps020spss_root = "results/gridworld/3x3heatmaps/concrete/020/until6_states/SPSS_"
+
+tms = {}
+tms['$\\varepsilon$ = 0.1, SS'] = eps010ss_root
+tms['$\\varepsilon$ = 0.2, SS'] = eps020ss_root
+tms['$\\varepsilon$ = 0.1, SPSS'] = eps010spss_root
+tms['$\\varepsilon$ = 0.2, SPSS'] = eps020spss_root
+
+fig = plt.figure(figsize=(10,6))
+plt.subplots_adjust(hspace=.7)
+
+
+cols = list(tms.keys())
+scatter_df = pd.DataFrame(columns=cols,index=range(9))
+
+for s in range(9):
+    res = pd.read_csv(f"results/gridworld/3x3heatmaps/concrete/010/until6_states/SS_{s}/res.csv",index_col=0)
+    scatter_df.loc[s,'Unperturbed'] = float(res.loc['unperturbed_probability'][0])
+
+    for tm in tms.keys():
+        res = pd.read_csv(f"{tms[tm]}{s}/res.csv",index_col=0)
+        scatter_df.loc[s,tm] = float(res.loc['unperturbed_probability'][0]) - float(res.loc['minimized_probability'][0])
+
+logging.info('plotting unperturbed')
+for i,tm in enumerate(tms.keys()):
+    ax = fig.add_subplot(4,1,i+1)
+    sns.heatmap(pd.DataFrame(scatter_df.loc[:,tm],index=range(9),dtype=float).transpose(), cmap=sns.cm.rocket_r, ax=ax, cbar=True, vmin=0, vmax=0.35, annot=True)
+
+out = "plotting/plots/selected_states_heatmap.pdf"
+plt.tight_layout()
+plt.savefig(out)
+logging.info(f"plot saved to {out}")

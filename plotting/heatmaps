@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+
+import numpy as np 
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import logging
+
+plt.rcParams.update({'axes.titlesize':18,'xtick.labelsize':12,'ytick.labelsize':12})
+logging.getLogger().setLevel(level=getattr(logging, "INFO"))
+
+e010ss = pd.read_csv("results/gridworld/3x3heatmaps/concrete/010/until6/SS_1-3-7/PplusX.csv",header=None)
+e030ss = pd.read_csv("results/gridworld/3x3heatmaps/concrete/030/until6/SS_1-3-7/PplusX.csv",header=None)
+e010spss = pd.read_csv("results/gridworld/3x3heatmaps/concrete/010/until6/SPSS_1-3-7/PplusX.csv",header=None)
+e030spss = pd.read_csv("results/gridworld/3x3heatmaps/concrete/030/until6/SPSS_1-3-7/PplusX.csv",header=None)
+orig = pd.read_csv("case_studies/gridworld/3x3heatmaps.csv",header=None)
+
+fig = plt.figure(figsize=(20,15))
+spl = fig.add_subplot(3,3,4,title='P ($\\varepsilon=0.0$)')
+
+ax12 = fig.add_subplot(4,3,3,title='P+X ($\\varepsilon=0.1$, SS)')
+ax22 = fig.add_subplot(4,3,6,title='P+X ($\\varepsilon=0.3$, SS)')
+ax32 = fig.add_subplot(4,3,9,title='P+X ($\\varepsilon=0.1$, SPSS)')
+ax42 = fig.add_subplot(4,3,12,title='P+X ($\\varepsilon=0.3$, SPSS)')
+
+ax11 = fig.add_subplot(4,3,2,title='X ($\\varepsilon=0.1$, SS)')
+ax21 = fig.add_subplot(4,3,5,title='X ($\\varepsilon=0.3$, SS)')
+ax31 = fig.add_subplot(4,3,8,title='X ($\\varepsilon=0.1$, SPSS)')
+ax41 = fig.add_subplot(4,3,11,title='X ($\\varepsilon=0.3$, SPSS)')
+
+
+plt.subplots_adjust(hspace=.7)
+sns.heatmap(orig, cmap="seismic_r", ax=spl, vmin=-1, vmax=1)
+sns.heatmap(e010ss, cmap="seismic_r", ax=ax12, cbar=False, vmin=-1, vmax=1)
+sns.heatmap(e030ss, cmap="seismic_r", ax=ax22, cbar=False, vmin=-1, vmax=1)
+sns.heatmap(e010spss, cmap="seismic_r", ax=ax32, cbar=False, vmin=-1, vmax=1)
+sns.heatmap(e030spss, cmap="seismic_r", ax=ax42, cbar=False, vmin=-1, vmax=1)
+
+sns.heatmap(e010ss-orig, cmap="seismic_r", ax=ax11, cbar=False, vmin=-1, vmax=1)
+sns.heatmap(e030ss-orig, cmap="seismic_r", ax=ax21, cbar=False, vmin=-1, vmax=1)
+sns.heatmap(e010spss-orig, cmap="seismic_r", ax=ax31, cbar=False, vmin=-1, vmax=1)
+sns.heatmap(e030spss-orig, cmap="seismic_r", ax=ax41, cbar=False, vmin=-1, vmax=1)
+
+print(orig-e010ss)
+out = "plotting/plots/3x3heatmaps.pdf"
+fig.tight_layout()
+plt.savefig(out,bbox_inches='tight')
+logging.info(f"plot saved to {out}")

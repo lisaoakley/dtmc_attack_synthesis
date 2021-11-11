@@ -4,3 +4,4 @@ test*
 TEST
 results
 plots
+failed_function_parsing.out

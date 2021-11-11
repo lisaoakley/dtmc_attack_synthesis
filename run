@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+
+import argparse
+import logging
+import glob
+import os
+import pandas as pd
+
+from src.experiment import Experiment
+
+
+def valid_eps(eps):
+    msg = "Epsilon must be a real number in range [0,1], invalid input: {}".format(eps)
+    try:
+        val = float(eps)
+        if not (val <= 1. and val >= 0.):
+            raise argparse.ArgumentTypeError(msg)
+    except TypeError as _:
+        raise argparse.ArgumentTypeError(msg)
+    except ValueError as _:
+        raise argparse.ArgumentTypeError(msg)
+    return float(eps)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="run", description="CLI for running experiments for verification of stochastic systems"
+    )
+
+    # Distinguish which optimization method to use
+    parser.add_argument(
+        "--method",
+        help="Use the concrete model checking (aka direct computation) based optimization approach or the symbolic solution function optimization approach",
+        choices=["concrete","symbolic"],
+        required=True
+    )
+
+    # Provide expected format for model file. Future work can add option to input prism model file (.pm) directly.
+    parser.add_argument(
+        "--infile_type",
+        help="Select matrix if target DTMC is a .csv matrix file.",
+        choices=["matrix"], 
+        default="matrix"
+    )
+
+    # Provide property as a string
+    parser.add_argument(
+        "--property",
+        help="Provide the PCTL* formula as a string for model-checking",
+        required=True,
+        type=str
+    )
+    parser.add_argument(
+        "--property_tag",
+        help="Provide a unique tag for the PCTL* formula",
+        required=True,
+        type=str
+    )
+
+    # Determine which threat models to run
+    tms = parser.add_argument_group(title='Threat Models', description='Include 1 or more threat models to consider')
+    tms.add_argument(
+        "--tm_SS",
+        help="Use selected states threat model, followed by list of attackable states",
+        nargs='+',
+        type=int
+    )
+    tms.add_argument(
+        "--tm_SPSS",
+        help="Use structure preserving selected states threat model, followed by list of attackable states",
+        nargs='+',
+        type=int
+    )
+    tms.add_argument(
+        "--tm_ST",
+        help="Use selected states threat model, followed by list of attackable transitions formatted: s1,s2 s1,s4 ...",
+        nargs='+',
+        type=str
+    )
+    tms.add_argument(
+        "--tm_SPST",
+        help="Use selected states threat model, followed by list of attackable transitions formatted: s1,s2 s1,s4 ...",
+        nargs='+',
+        type=str
+    )
+
+    parser.add_argument(
+        "--epsilon",
+        help="Specify attacker budget as a value in [0,1]",
+        type=valid_eps,
+        required=True
+    )
+
+    pDTMC = parser.add_argument_group(title='pDTMC Model Checker', description='settings related to pDTMC model checkers')
+
+    pDTMC.add_argument(
+        "--pdtmc_modelchecker",
+        help="Only for symbolic solution function optimization. Specify which model checker to use for generating the closed form symbolic solution function",
+        choices=["prism","param"],
+        default="prism"
+    )    
+    pDTMC.add_argument(
+        "--fallback",
+        help="If preferred model checker errors, fallback=True means the other model checkers will be tried",
+        default=True,
+        action="store_true"
+    )    
+
+    meta = parser.add_argument_group(title='Experiment Metadata')
+    meta.add_argument(
+        "--id",
+        help="Provide instance id for the specific instance of the case study you wish to run",
+        required=True,
+        type=str
+    )
+    meta.add_argument(
+        "--case_study",
+        help="Provide name of case study type you wish to run",
+        required=True,
+        type=str
+    )
+
+    # Log Level
+    parser.add_argument(
+        "--log-level",
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
+        default="INFO",
+        help="The log level.",
+    )
+
+    mc_path = parser.add_mutually_exclusive_group()
+    mc_path.add_argument(
+        "--prism_bin",
+        help="give path to prism binary (use with symbolic model checking)",
+        default="prism"
+    )
+    mc_path.add_argument(
+        "--param_bin",
+        help="give path to param binary (use with symbolic model checking)",
+        default="param"
+    )
+
+    args = parser.parse_args()
+
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',datefmt='%Y-%m-%d %H:%M:%S')
+    logging.getLogger().setLevel(level=getattr(logging, args.log_level.upper()))
+
+    
+    results_base = f"results/{args.case_study}/{args.id}/{args.method}/{int(float(args.epsilon)*100):03}"
+    results_base = f"{results_base}/{args.property_tag}"
+    if args.infile_type == "matrix":
+        matrix_file = "case_studies/{}/{}.csv".format(args.case_study, args.id)
+    else:
+        raise NotImplementedError
+    
+    # Collect threat models
+    tms = {}
+    logging.info('Collecting threat models')
+    if not (args.tm_ST or args.tm_SS or args.tm_SPSS or args.tm_SPST):
+        argparse.ArgumentParser().error(message="Must specify at least one threat model in run arguments (e.g. --tm_ST). Specify --help for more info")
+    else:
+        if args.tm_ST:
+            tms['ST'] = [a.split(',') for a in args.tm_ST]
+        if args.tm_SPST:
+            tms['SPST'] = [a.split(',') for a in args.tm_SPST]
+        tms['SS'] = args.tm_SS
+        tms['SPSS'] = args.tm_SPSS
+        
+            
+    for tm in tms:
+        if not tms[tm]: 
+            continue
+        logging.info(f"Starting Experiment with property {args.property}, threat model {tm}, case study {args.case_study}, id {args.id}, epsilon {args.epsilon}")
+        tm_results_base = "{}/{}".format(results_base,tm)
+        if tm == "ST" or tm == "SPST":
+            tm_results_base = f"{tm_results_base}_{len(tms[tm])}"
+        elif tm == "SS" or tm == "SPSS":
+            tm_results_base = f"{tm_results_base}_{'-'.join([f'{str(a)}' for a in tms[tm]])}"
+        else:
+            raise NotImplementedError
+        # create results directory
+        if not os.path.exists(tm_results_base):
+            os.makedirs(tm_results_base,exist_ok=True)
+        # ensure property index is noted in the file
+        pd.DataFrame([args.property],index=["property"]).to_csv("{}/res.csv".format(tm_results_base))
+
+        if args.infile_type == 'matrix':
+            logging.info('Initializing experiment')
+            experiment = Experiment(matrix_file=matrix_file, prop=args.property, tm=tm, tm_args=tms[tm], epsilon=args.epsilon, results_base=tm_results_base, method=args.method, prism_bin=args.prism_bin, pdtmc_modelchecker=args.pdtmc_modelchecker, param_bin=args.param_bin)
+        elif args.infile_type == 'pm': 
+            # experiment = Experiment(model_file=model_file, prop=args.property tms=tms, epsilon=args.epsilon)
+            raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+        
+        # Run experiment
+        try:
+            logging.info('Running experiment')
+            experiment.run()
+        except (ValueError,RuntimeError) as err:
+            logging.warning(f'Experiment did not complete successfully, here is the error:\n\n\n{err}')
+            
+
