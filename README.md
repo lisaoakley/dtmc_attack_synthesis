@@ -150,13 +150,15 @@ Plotting:
 ```
 
 # How to Cite
-Oakley, Lisa, Alina Oprea, and Stavros Tripakis. "Adversarial Robustness Verification and Attack Synthesis in Stochastic Systems." arXiv preprint arXiv:2110.02125 (2021).
+Oakley, Lisa, Alina Oprea, and Stavros Tripakis. "Adversarial Robustness Verification and Attack Synthesis in Stochastic Systems," 2022 IEEE 35th Computer Security Foundations Symposium (CSF), 2022, doi: 10.1109/CSF54842.2022.9919660.
 
 ```
-@article{oakley2021adversarial,
-  title={Adversarial Robustness Verification and Attack Synthesis in Stochastic Systems},
+@inproceedings{oakley2022adversarial,
   author={Oakley, Lisa and Oprea, Alina and Tripakis, Stavros},
-  journal={arXiv preprint arXiv:2110.02125},
-  year={2021}
-}
+  booktitle={2022 IEEE 35th Computer Security Foundations Symposium (CSF)}, 
+  title={Adversarial Robustness Verification and Attack Synthesis in Stochastic Systems}, 
+  year={2022},
+  pages={380-395},
+  doi={10.1109/CSF54842.2022.9919660}}
+
 ```
